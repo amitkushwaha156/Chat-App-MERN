@@ -4,8 +4,14 @@ import { UploadFile } from "../helper/UploadFile";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { ClipLoader } from "react-spinners"; // Import the spinner
+import UserLocation from "../helper/UserLocation";
 
 const RegisterPage = () => {
+
+const city =UserLocation()
+ //  console.log("city",city)
+
+
   const [loading, setLoading] = useState(false); // Update initial state
   const navigate = useNavigate();
   const NameEle = useRef();
@@ -16,6 +22,8 @@ const RegisterPage = () => {
   const RegisterUser = async (e) => {
     e.preventDefault();
     setLoading(true); // Start loading
+
+    
 
     const name = NameEle.current.value;
     const email = EmailEle.current.value;
@@ -33,6 +41,7 @@ const RegisterPage = () => {
       name,
       email,
       password,
+      city:city,
       profile_pic: fileUrl,
     };
 
@@ -127,7 +136,7 @@ const RegisterPage = () => {
                         <input
                           type="password"
                           ref={PasswordEle}
-                          required
+                          required 
                           className="form-control form-control-lg bg-light-subtle border-light"
                           placeholder="Enter Password"
                           aria-label="Enter Password"

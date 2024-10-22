@@ -7,7 +7,7 @@ const {
   ConversationModel,
   MessageModel,
 } = require("../models/ConversationModel");
-const getConversation = require("../helper/getConvesation");
+const getConversation = require("../helper/getConversation");
 
 const app = express();
 
@@ -64,12 +64,12 @@ io.on("connection", async (socket) => {
         .sort({ updatedAt: -1 });
 
       socket.emit("message", getConversationMessage);
-      socket.emit("seenData", userId);
-      //    console.log("getConversationMessage", getConversationMessage);
+   
     });
 
     //new new-message
     socket.on("new-message", async (data) => {
+     // console.log("newMessage", data);
       let conversation = await ConversationModel.findOne({
         $or: [
           { sender: data?.sender, receiver: data?.receiver },
@@ -89,6 +89,7 @@ io.on("connection", async (socket) => {
         text: data.text,
         imageUrl: data.imageUrl,
         videoUrl: data.videoUrl,
+        pdfUrl: data.pdfUrl,
         msgByUserId: data?.msgByUserId,
       });
 
@@ -97,7 +98,7 @@ io.on("connection", async (socket) => {
       // console.log("Message saved:", saveMessage);
       //yha tk correct hia new chat a rhi hai
 
-      const updateConversation = await ConversationModel.updateOne(
+       await ConversationModel.updateOne(
         { _id: conversation?._id },
         { $push: { messages: saveMessage?._id } }
       );
@@ -114,15 +115,17 @@ io.on("connection", async (socket) => {
         .populate("messages")
         .sort({ updatedAt: -1 });
 
+      
       io.to(data?.sender).emit("message", getConversationMessage);
-      io.to(data?.receiver).emit("message", getConversationMessage);
+     
+     // io.to(data?.receiver).emit("message", getConversationMessage);
 
 
       //send convertion message 
 
       const ConversationSender=await getConversation(data?.sender)
       const ConversationReceiver=await getConversation(data?.receiver)
-
+  
       io.to(data?.sender).emit("ConversationMsg", ConversationSender);
       io.to(data?.receiver).emit("ConversationMsg", ConversationReceiver);
 
@@ -144,7 +147,7 @@ io.on("connection", async (socket) => {
     //socket onseen data
 
     socket.on("seenData", async(msgByUserId) => {
-   // console.log(msgByUserId)
+     //console.log("msgByUserId",msgByUserId)
  const conversation=await ConversationModel.findOne({
    $or: [
      { sender: user._id, receiver: msgByUserId },
@@ -177,7 +180,7 @@ io.on("connection", async (socket) => {
     // Handle socket disconnection
     socket.on("disconnect", () => {
       if (user) { // Ensure user is defined
-        onlineUsers.delete(user._id.toString());
+        onlineUsers.delete(user._id?.toString());
         io.emit("offlineUser", user._id); // Emit the offline user event
       //  console.log("User disconnected:", user._id);
       //  console.log("Updated online users:", Array.from(onlineUsers)); // Log the current online users

@@ -4,6 +4,7 @@ const initialState = {
   _id: "",
   name: "",
   email: "",
+  city:"",
   profile_pic: "",
   token: "",
   onlineUser: [],
@@ -16,10 +17,11 @@ export const UserSlice = createSlice({
   initialState,
   reducers: {
     setUser: (state, action) => {
-      const { _id, name, email, profile_pic } = action.payload;
+      const { _id, name, email,city, profile_pic } = action.payload;
       state._id = _id || ""; // default to empty string if undefined
       state.name = name || "";
       state.email = email || "";
+      state.city = city|| ""; // default to empty string if undefined
       state.profile_pic = profile_pic || "";
     },
     setToken: (state, action) => {
@@ -43,6 +45,11 @@ export const UserSlice = createSlice({
     setSocketConnections: (state, action) => {
       state.socketConnections = action.payload || null; 
     },
+    setLocation:(state,action)=>{
+      console.log("Setting location:", action.payload)  // default to empty string if undefined
+      state.city = action.payload || "";  // default to empty string if undefined
+      
+    }
   },
 });
 
@@ -53,7 +60,8 @@ export const {
   logout, 
   setOnlineUser, 
   removeOnlineUser, // Export the new action
-  setSocketConnections 
+  setSocketConnections ,
+  setLocation
 } = UserSlice.actions;
 
 const UserSlices = UserSlice.reducer;

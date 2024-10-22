@@ -5,6 +5,7 @@ import AllUser from "./AllUser";
 import { logout } from "../redux/UserSlice";
 import axios from "axios";
 import toast from "react-hot-toast";
+import moment from "moment";
 
 
 
@@ -48,7 +49,7 @@ const Sidebar = () => {
   //search set
   const user = useSelector((state) => state.user);
   
-  //console.log(user);
+  //console.log("user",user);
   
     const [searchUser, setSearchUser] = useState("");
     const [users, setUsers] = useState([]);
@@ -314,58 +315,104 @@ const Sidebar = () => {
               {/* End profile user */}
               {/* Start user-profile-desc */}
               <div className="p-4 user-profile-desc" data-simplebar="init">
-                <div className="simplebar-wrapper" style={{ margin: "-24px" }}>
-                  <div className="simplebar-height-auto-observer-wrapper">
-                    <div className="simplebar-height-auto-observer" />
-                  </div>
-                  <div className="simplebar-mask">
-                    <div
-                      className="simplebar-offset"
-                      style={{ right: 0, bottom: 0 }}
-                    >
-                      <div
-                        className="simplebar-content-wrapper"
-                        style={{ height: "auto", overflow: "hidden" }}
-                      >
-                     
-
-
-
-                     {/* searchUser */}
-                      </div>
+  <div className="simplebar-wrapper" style={{ margin: "-24px" }}>
+    <div className="simplebar-height-auto-observer-wrapper">
+      <div className="simplebar-height-auto-observer" />
+    </div>
+    <div className="simplebar-mask">
+      <div className="simplebar-offset" style={{ right: "-16.8px", bottom: 0 }}>
+        <div
+          className="simplebar-content-wrapper"
+          style={{ height: "100%", overflow: "hidden scroll" }}
+        >
+          <div className="simplebar-content" style={{ padding: 24 }}>
+            <div className="text-muted">
+              <p className="mb-4">
+           
+              </p>
+            </div>
+            <div id="tabprofile" className="accordion">
+              <div className="accordion-item card border mb-2">
+                <div className="accordion-header" id="about2">
+                  <button
+                    className="accordion-button"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#about"
+                    aria-expanded="true"
+                    aria-controls="about"
+                  >
+                    <h5 className="font-size-14 m-0">
+                      <i className="ri-user-2-line me-2 ms-0 ms-0 align-middle d-inline-block" />{" "}
+                      About
+                    </h5>
+                  </button>
+                </div>
+                <div
+                  id="about"
+                  className="accordion-collapse collapse show"
+                  aria-labelledby="about2"
+                  data-bs-parent="#tabprofile"
+                  style={{}}
+                >
+                  <div className="accordion-body">
+                    <div>
+                      <p className="text-muted mb-1">Name</p>
+                      <h5 className="font-size-14">{user.name}</h5>
+                    </div>
+                    <div className="mt-4">
+                      <p className="text-muted mb-1">Email</p>
+                      <h5 className="font-size-14">{user.email}</h5>
+                    </div>
+                    <div className="mt-4">
+                      <p className="text-muted mb-1">Joined BY</p>
+                      <h5 className="font-size-14">   {moment(user.createAt).format("MMMM Do YYYY")}</h5>
+                    </div>
+                    <div className="mt-4">
+                      <p className="text-muted mb-1">Location</p>
+                      <h5 className="font-size-14 mb-0">{user.city}</h5>
                     </div>
                   </div>
-                  <div
-                    className="simplebar-placeholder"
-                    style={{ width: 0, height: 0 }}
-                  />
-                </div>
-                <div
-                  className="simplebar-track simplebar-horizontal"
-                  style={{ visibility: "hidden" }}
-                >
-                  <div
-                    className="simplebar-scrollbar"
-                    style={{
-                      transform: "translate3d(0px, 0px, 0px)",
-                      display: "none",
-                    }}
-                  />
-                </div>
-                <div
-                  className="simplebar-track simplebar-vertical"
-                  style={{ visibility: "hidden" }}
-                >
-                  <div
-                    className="simplebar-scrollbar"
-                    style={{
-                      transform: "translate3d(0px, 0px, 0px)",
-                      display: "none",
-                      height: 286,
-                    }}
-                  />
                 </div>
               </div>
+              {/* End About card */}
+           
+              {/* End Attached Files card */}
+            </div>
+            {/* end profile-user-accordion */}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div
+      className="simplebar-placeholder"
+      style={{ width: "auto", height: 545 }}
+    />
+  </div>
+  <div
+    className="simplebar-track simplebar-horizontal"
+    style={{ visibility: "hidden" }}
+  >
+    <div
+      className="simplebar-scrollbar"
+      style={{ transform: "translate3d(0px, 0px, 0px)", display: "none" }}
+    />
+  </div>
+  <div
+    className="simplebar-track simplebar-vertical"
+    style={{ visibility: "visible" }}
+  >
+    <div
+      className="simplebar-scrollbar"
+      style={{
+        transform: "translate3d(0px, 0px, 0px)",
+        display: "block",
+        height: 25
+      }}
+    />
+  </div>
+</div>
+
               {/* end user-profile-desc */}
             </div>
             {/* End profile content */}
@@ -710,6 +757,15 @@ const Sidebar = () => {
                                       {user.name}
                                     </h5>
                                   </div>
+                                  <div className="float-end">
+                                    <button
+                                      type="button"
+                                      className="btn btn-light btn-sm"
+                                    >
+                                      <i className="ri-edit-fill me-1 ms-0 align-middle" />{" "}
+                                      Edit
+                                    </button>
+                                  </div>
                                   <div className="mt-4">
                                     <p className="text-muted mb-1">Email</p>
                                     <h5 className="font-size-14">
@@ -717,13 +773,13 @@ const Sidebar = () => {
                                     </h5>
                                   </div>
                                   <div className="mt-4">
-                                    <p className="text-muted mb-1">Time</p>
-                                    <h5 className="font-size-14">11:40 AM</h5>
+                                    <p className="text-muted mb-1">Joined By</p>
+                                    <h5 className="font-size-14">{moment(user.createAt).format("MMMM Do YYYY")}</h5>
                                   </div>
                                   <div className="mt-4">
                                     <p className="text-muted mb-1">Location</p>
                                     <h5 className="font-size-14 mb-0">
-                                      California, USA
+                                    {user.city}  
                                     </h5>
                                   </div>
                                 </div>

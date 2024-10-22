@@ -3,7 +3,7 @@ const bcrypt = require("bcrypt");
 
 async function registerUser(req, res) {
   try {
-    const { name, email, password, profile_pic } = req.body;
+    const { name, email,city, password, profile_pic } = req.body;
 
     // Validate input fields
     const checkEmail = await userModel.findOne({ email });
@@ -24,6 +24,7 @@ async function registerUser(req, res) {
       name,
       email,
       profile_pic,
+      city,
       password: hashPassword,
     };
     const user = new userModel(payload);

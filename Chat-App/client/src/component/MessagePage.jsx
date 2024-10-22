@@ -10,7 +10,7 @@ const MessagePage = () => {
   const location = useLocation();
   const basePath = location.pathname === "/";
   const Params = useParams();
-
+  const user = useSelector((state) => state.user);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const [typing, setTyping] = useState(false);
@@ -18,6 +18,7 @@ const MessagePage = () => {
   const MessageEle = useRef();
   const VideoEle = useRef();
   const ImageEle = useRef();
+  const pdfUrlEle = useRef();
   const LoginUserLocal = JSON.parse(localStorage.getItem("loginUser"));
 
   const onlineCurrent = useSelector((state) => state.user.onlineUser);
@@ -79,26 +80,33 @@ const MessagePage = () => {
     const text = MessageEle.current.value.trim(); // Trim to avoid empty messages
     const videoUrl = VideoEle.current.files;
     const imageUrl = ImageEle.current.files;
-    if (text === "" && videoUrl.length === 0 && imageUrl.length === 0) {
+    const pdfUrl = pdfUrlEle.current.files;
+    if (text === "" && videoUrl.length === 0 && imageUrl.length === 0 && pdfUrl.length===0) {
       toast.error("Please enter a message or upload a file."); // Notify the user
       return; // Early exit if all fields are blank
     }
     let fileUrlImage = ""; // Default image
     let fileUrlVideo = ""; // Default video
+    let fileUrlPdf = ""; // Default video
 
     try {
       // Handle image upload
+
       if (imageUrl.length > 0) {
         const file = imageUrl[0];
         fileUrlImage = await UploadFile(file);
-        toast.success("Image loaded successfully");
+        toast.success("image loaded successfully");
       }
-
-      // Handle video upload
       if (videoUrl.length > 0) {
         const file = videoUrl[0];
         fileUrlVideo = await UploadFile(file);
         toast.success("Video loaded successfully");
+      }
+      if (pdfUrl.length > 0) {
+        const file = pdfUrl[0];
+        fileUrlPdf = await UploadFile(file);
+        console.log(fileUrlPdf)
+        toast.success("Pdf loaded successfully");
       }
 
       // Emit the new message to the server
@@ -109,6 +117,8 @@ const MessagePage = () => {
         text: text,
         imageUrl: fileUrlImage,
         videoUrl: fileUrlVideo,
+        pdfUrl: fileUrlPdf,
+
         msgByUserId: LoginUserLocal._id,
       });
       socketConnection.emit("seenData", currentUser?._id);
@@ -117,11 +127,13 @@ const MessagePage = () => {
       MessageEle.current.value = "";
       VideoEle.current.value = ""; // Reset file input
       ImageEle.current.value = ""; // Reset file input
+      pdfUrlEle.current.value = ""; // Reset file input
     } catch (error) {
       console.error("Error uploading files:", error);
       toast.error("Failed to load files. Please try again.");
     }
   };
+  const [messageTrigger, setMessageTrigger] = useState(0); 
   useEffect(() => {
     if (socketConnection) {
       //  console.log("socketConnection2 is", socketConnection);
@@ -133,19 +145,27 @@ const MessagePage = () => {
         //  console.log("online",data);
         setCurrentUser(data);
       });
-
-      socketConnection.on("message", (data) => {
-     //   console.log("Received messages:", data?.messages);
-        setMessages(data?.messages);
+      socketConnection.on("ConversationMsg", (data) => {
+  
+     //  console.log("ConversationMsg:", data);
+      if (data.length > 0) {
+     
+        setMessageTrigger(  data[0]?.lastMsg?.msgByUserId);
+      }
       });
 
+      socketConnection.on("message", (data) => {
+     // console.log("Received messages:", data?.messages);
+        setMessages(data?.messages);
+      });
 
       let typingTimeout;
 
       socketConnection.on("StartTyping", (data) => {
         const senderId = data;
+console.log(senderId,Params.userId)
 
-        if (senderId !== LoginUserLocal._id) {
+        if (senderId === Params.userId) {
           // Only show typing for others
           setTyping(true);
           // console.log("Typing...");
@@ -159,19 +179,28 @@ const MessagePage = () => {
           }, 3000);
         }
       });
-      socketConnection.on("ConversationMsg", (data) => {
-           console.log("ConversationMsg", data);
-      })  
+     
       // Cleanup function
       return () => {
-        socketConnection.off("message-page");
-        socketConnection.off("messages");
+        return () => {
+          socketConnection.off("message-page");
+          socketConnection.off("ConversationMsg");
+          socketConnection.off("message");
+          socketConnection.off("StartTyping");
+        };
       };
     } else {
       console.log("Socket not connected");
     }
-  }, [socketConnection, Params?.userId]);
+  }, [socketConnection, Params?.userId,messageTrigger]);
 
+  useEffect(() => {
+    setMessageTrigger(Params.userId);
+    MessageEle.current.value = "";
+    VideoEle.current.value = ""; // Reset file input
+    ImageEle.current.value = ""; // Reset file input
+    pdfUrlEle.current.value = ""; // Reset file input
+  }, [Params.userId]);
   //console.log("locallogin",LoginUserLocal)
   //console.log("current",currentUser._id)
 
@@ -187,8 +216,18 @@ const MessagePage = () => {
     socketConnection.emit("StopTyping", LoginUserLocal._id);
   };
 
- 
-
+  const handleDownload = async (url) => {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.download = url.split('/').pop(); // Set the filename to the last part of the URL
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  
+//console.log(messages)
   return (
     <div
       className={`user-chat w-100 overflow-hidden user-chat-show ${
@@ -306,14 +345,14 @@ const MessagePage = () => {
                       <div className="dropdown-menu dropdown-menu-end">
                         <a
                           className="dropdown-item d-block d-lg-none user-profile-show"
-                          href="#"
+                          href="/"
                         >
                           View profile{" "}
                           <i className="ri-user-2-line float-end text-muted" />
                         </a>
                         <a
                           className="dropdown-item d-block d-lg-none"
-                          href="#"
+                          href="/"
                           data-bs-toggle="modal"
                           data-bs-target="#audiocallModal"
                         >
@@ -322,22 +361,22 @@ const MessagePage = () => {
                         </a>
                         <a
                           className="dropdown-item d-block d-lg-none"
-                          href="#"
+                          href="/"
                           data-bs-toggle="modal"
                           data-bs-target="#videocallModal"
                         >
                           Video{" "}
                           <i className="ri-vidicon-line float-end text-muted" />
                         </a>
-                        <a className="dropdown-item" href="#">
+                        <a className="dropdown-item" href="/">
                           Archive{" "}
                           <i className="ri-archive-line float-end text-muted" />
                         </a>
-                        <a className="dropdown-item" href="#">
+                        <a className="dropdown-item" href="/">
                           Muted{" "}
                           <i className="ri-volume-mute-line float-end text-muted" />
                         </a>
-                        <a className="dropdown-item" href="#">
+                        <a className="dropdown-item" href="/">
                           Delete{" "}
                           <i className="ri-delete-bin-line float-end text-muted" />
                         </a>
@@ -364,135 +403,200 @@ const MessagePage = () => {
                     className="simplebar-content-wrapper"
                     style={{ height: "100%", overflow: "hidden scroll" }}
                   >
-                    <div className="simplebar-content" style={{ padding: 24 }}>
-                      {messages && messages.length > 0 && (
-                        <ul className="list-unstyled mb-0">
-                          {messages.map((msg, index) => {
-                            const isCurrentUser =
-                              LoginUserLocal._id === msg.msgByUserId;
-                            const userProfilePic = isCurrentUser
-                              ? LoginUserLocal.profile_pic
-                              : currentUser.profile_pic;
-                            const userName = isCurrentUser
-                              ? LoginUserLocal.name
-                              : currentUser.name;
-                            const alignmentClass = isCurrentUser
-                              ? "right mb-5 pb-5"
-                              : "";
+                   <div className="simplebar-content" style={{ padding: 24 }}>
+  {messages && messages.length > 0 && (
+    <ul className="list-unstyled mb-0">
+      {messages.reduce((acc, msg, index) => {
+    
+        const isCurrentUser = LoginUserLocal._id === msg.msgByUserId;
+        const userProfilePic = isCurrentUser
+          ? LoginUserLocal.profile_pic
+          : currentUser.profile_pic;
+        const userName = isCurrentUser
+          ? LoginUserLocal.name
+          : currentUser.name;
+        const alignmentClass = isCurrentUser ? "right mb-5 pb-5" : "";
 
-                            return (
-                              <li className={alignmentClass} key={index}>
-                                <div className="conversation-list">
-                                  <div className="chat-avatar">
-                                    <img src={userProfilePic} alt="" />
-                                  </div>
-                                  <div className="user-chat-content">
-                                    <div className="ctext-wrap">
-                                      <div className="ctext-wrap-content">
-                                        {msg.imageUrl && (
-                                          <ul className="list-inline message-img mb-0">
-                                            <li className="list-inline-item message-img-list me-2 ms-0">
-                                              <div>
-                                                <a
-                                                  className="popup-img d-inline-block m-1"
-                                                  href={msg.imageUrl} // Adjusted to use the actual image URL
-                                                  title="Project 1"
-                                                >
-                                                  <img
-                                                    src={msg.imageUrl}
-                                                    alt=""
-                                                    className="rounded border"
-                                                  />
-                                                </a>
-                                              </div>
-                                            </li>
-                                          </ul>
-                                        )}
-                                        {msg.videoUrl && (
-                                          <ul className="list-inline message-img mb-0">
-                                            <li className="list-inline-item message-img-list me-2 ms-0">
-                                              <div>
-                                                <a
-                                                  className="popup-img d-inline-block m-1"
-                                                  href={msg.videoUrl} // Adjusted to use the actual video URL
-                                                  title="Project 1"
-                                                >
-                                                  <video
-                                                    src={msg.videoUrl}
-                                                    controls
-                                                    style={{ width: "250px" }}
-                                                    className="rounded border"
-                                                  />
-                                                </a>
-                                              </div>
-                                            </li>
-                                          </ul>
-                                        )}
+        // Get the message date
+        const messageDate = moment(msg.updatedAt).startOf('day');
+      //  console.log("messageDate",messageDate)
 
-                                        <p className="mb-0">{msg.text}</p>
-                                        <p className="chat-time mb-0">
-                                          {isCurrentUser && (
-                                            <>
-                                              {msg.seen ? (
-                                                <i className="ri-check-double-fill text-success align-middle" />
-                                              ) : (
-                                                <i className="ri-check-line align-middle" />
-                                              )}
-                                            </>
-                                          )}
-                                          &nbsp;{" "}
-                                          <span className="align-middle">
-                                            {moment(msg.createAt).format(
-                                              "hh:mm"
-                                            )}
-                                          </span>
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <div className="conversation-name">
-                                      {userName}
-                                    </div>
-                                  </div>
-                                </div>
-                                <br></br>
+        const today = moment().startOf('day');
 
-                                <br></br>
-                              </li>
-                            );
-                          })}
-                          {typing && (
-                            <li>
-                              <div className="conversation-list">
-                                <div className="chat-avatar">
-                                  <img src={currentUser.profile_pic} alt="" />
-                                </div>
-                                <div className="user-chat-content">
-                                  <div className="ctext-wrap">
-                                    <div className="ctext-wrap-content">
-                                      <p className="mb-0">
-                                        typing
-                                        <span className="animate-typing">
-                                          {" "}
-                                          &nbsp;
-                                          <span className="dot" /> &nbsp;
-                                          <span className="dot" /> &nbsp;
-                                          <span className="dot" /> &nbsp;
-                                        </span>
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <div className="conversation-name">
-                                    {currentUser.name}
-                                  </div>
-                                </div>
-                                <br></br>
+        const yesterday = moment().subtract(1, 'days').startOf('day');
+       // console.log("messageDate",yesterday)
+       
+
+
+        // Determine which date header to show
+        let dateHeader = null;
+        if (messageDate.isSame(today)) {
+       
+          dateHeader = "Today";
+        } else if (messageDate.isSame(yesterday)) {
+         
+          dateHeader = "Yesterday";
+        } else {
+          dateHeader = messageDate.format('MMMM Do YYYY'); // Format as needed
+        }
+        {/* console.log("messageDate",dateHeader) */}
+        // Check if the date header has been displayed
+        if (!acc.lastDisplayedDate || acc.lastDisplayedDate !== dateHeader) {
+          acc.messages.push(
+            <li key={`date-${index}`}>
+              <div className="chat-day-title">
+                <span className="title">{dateHeader}</span>
+              </div>
+            </li>
+          );
+          acc.lastDisplayedDate = dateHeader; // Update the last displayed date
+        }
+
+        // Add the message to the list
+        acc.messages.push(
+          <li className={alignmentClass} key={index}>
+            <div className="conversation-list">
+              <div className="chat-avatar">
+                <img src={userProfilePic} alt="" />
+              </div>
+              <div className="user-chat-content">
+                <div className="ctext-wrap">
+                  <div className="ctext-wrap-content">
+                    {msg.imageUrl && (
+                      <ul className="list-inline message-img mb-0">
+                        <li className="list-inline-item message-img-list me-2 ms-0">
+                          <div>
+                            <a
+                              className="popup-img d-inline-block m-1"
+                              href={msg.imageUrl}
+                              title="Image" download
+                            >
+                              <img
+                                src={msg.imageUrl}
+                                alt=""
+                                className="rounded border"
+                              />
+                              <div>
+
+                            <i class="ri-download-2-line text-lg" onClick={() => handleDownload(msg.imageUrl)}  style={{ cursor: 'pointer' }}></i>
                               </div>
-                            </li>
+
+                            </a>
+                          </div>
+                        </li>
+                      </ul>
+                    )}
+                    {msg.videoUrl && (
+                      <ul className="list-inline message-img mb-0">
+                        <li className="list-inline-item message-img-list me-2 ms-0">
+                          <div>
+                            <a
+                              className="popup-img d-inline-block m-1"
+                              href={msg.videoUrl}
+                              title="Video" download
+                            >
+                              <video
+                                src={msg.videoUrl}
+                                controls 
+                                style={{ width: "250px" }}
+                                className="rounded border"
+                              />
+                              <div>
+                                
+                            <i class="ri-download-2-line text-lg" onClick={() => handleDownload(msg.videoUrl)}  style={{ cursor: 'pointer' }}></i>
+                              </div>
+
+                            </a>
+                          </div>
+                        </li>
+                      </ul>
+                    )}
+                    {msg.pdfUrl && (
+                      <ul className="list-inline message-img mb-0">
+                        <li className="list-inline-item message-img-list me-2 ms-0">
+                          <div>
+                            <a
+                              className="popup-img d-inline-block m-1"
+                              href={msg.pdfUrl}
+                              title="PDF"  
+                            >
+                              <iframe
+                                src={msg.pdfUrl} 
+                                className="rounded border"
+                                title="PDF Preview"
+                              />
+                              <div>
+
+                            <i class="ri-download-2-line text-lg" onClick={() => handleDownload(msg.pdfUrl)}  style={{ cursor: 'pointer' }}></i>
+                              </div>
+                            </a>
+                          </div>
+                        </li>
+                      </ul>
+                    )}
+                    <p className="mb-0">{msg.text}</p>
+                    <p className="chat-time mb-0">
+                      {isCurrentUser && (
+                        <>
+                          {msg.seen ? (
+                            <i className="ri-check-double-fill text-success align-middle" />
+                          ) : (
+                            <i className="ri-check-line align-middle" />
                           )}
-                          <div ref={messagesEndRef} />
-                        </ul>
+                        </>
                       )}
-                    </div>
+                      &nbsp;{" "}
+                      <span className="align-middle">
+
+                        {moment(msg.updatedAt).format("hh:mm a")}
+                      
+                      </span>
+                    </p>
+                  </div>
+                </div>
+                <div className="conversation-name">{userName}</div>
+              </div>
+            </div>
+            <br />
+            <br />
+          </li>
+        );
+
+        return acc;
+      }, { messages: [], lastDisplayedDate: null }).messages}
+
+      {typing && (
+        <li>
+          <div className="conversation-list">
+            <div className="chat-avatar">
+              <img src={currentUser.profile_pic} alt="" />
+            </div>
+            <div className="user-chat-content">
+              <div className="ctext-wrap">
+                <div className="ctext-wrap-content">
+                  <p className="mb-0">
+                    typing
+                    <span className="animate-typing">
+                      {" "}
+                      &nbsp;
+                      <span className="dot" /> &nbsp;
+                      <span className="dot" /> &nbsp;
+                      <span className="dot" /> &nbsp;
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <div className="conversation-name">{currentUser.name}</div>
+            </div>
+            <br />
+          </div>
+        </li>
+      )}
+      <div ref={messagesEndRef} />
+    </ul>
+  )}
+</div>
+
                   </div>
                 </div>
               </div>
@@ -562,6 +666,7 @@ const MessagePage = () => {
                               <EmojiPicker onEmojiClick={onEmojiClick} />
                             </div>
                           )}
+
                           <button
                             style={{ "margin-top": "-7px" }}
                             type="button"
@@ -588,6 +693,20 @@ const MessagePage = () => {
                             className="form-control d-none"
                           />
                         </label>
+                        <label
+                          id="files"
+                          className="btn btn-link text-decoration-none font-size-16 btn-lg waves-effect form-label"
+                        >
+                          <i className="ri-attachment-line" />
+                          <input
+                            name="fileInput"
+                            size={60}
+                            type="file"
+                            ref={pdfUrlEle}
+                            className="form-control d-none"
+                          />
+                        </label>
+                    
                       </li>
                       <li className="list-inline-item input-file">
                         <label
@@ -677,7 +796,7 @@ const MessagePage = () => {
                     <div className="simplebar-content" style={{ padding: 24 }}>
                       <div className="text-muted">
                         <p className="mb-4">
-                          If several languages coalesce, the grammar of the
+                         
                         </p>
                       </div>
                       <div className="accordion" id="myprofile">
@@ -717,63 +836,19 @@ const MessagePage = () => {
                                 </h5>
                               </div>
                               <div className="mt-4">
-                                <p className="text-muted mb-1">Time</p>
-                                <h5 className="font-size-14">11:40 AM</h5>
+                                <p className="text-muted mb-1">joined By</p>
+                                <h5 className="font-size-14">{moment(currentUser.createAt).format("MMMM Do YYYY")}</h5>
                               </div>
                               <div className="mt-4">
                                 <p className="text-muted mb-1">Location</p>
                                 <h5 className="font-size-14 mb-0">
-                                  California, USA
+                                {user.city}
                                 </h5>
                               </div>
                             </div>
                           </div>
                         </div>
-                        <div className="accordion-item card border">
-                          <div className="accordion-header" id="attachfile3">
-                            <button
-                              className="accordion-button collapsed"
-                              type="button"
-                              data-bs-toggle="collapse"
-                              data-bs-target="#attachprofile"
-                              aria-expanded="false"
-                              aria-controls="attachprofile"
-                            >
-                              <h5 className="font-size-14 m-0">
-                                <i className="ri-attachment-line me-2 ms-0 align-middle d-inline-block" />{" "}
-                                Attached Files
-                              </h5>
-                            </button>
-                          </div>
-                          <div
-                            id="attachprofile"
-                            className="accordion-collapse collapse"
-                            aria-labelledby="attachfile3"
-                            data-bs-parent="#myprofile"
-                          >
-                            <div className="accordion-body">
-                              <div className="card p-2 border mb-2">
-                                <div className="d-flex align-items-center">
-                                  <div className="avatar-sm me-3 ms-0">
-                                    <div className="avatar-title bg-primary-subtle text-primary rounded font-size-20">
-                                      <i className="ri-file-text-fill" />
-                                    </div>
-                                  </div>
-                                  <div className="flex-grow-1">
-                                    <div className="text-start">
-                                      <h5 className="font-size-14 mb-1">
-                                        admin_v1.0.zip
-                                      </h5>
-                                      <p className="text-muted font-size-13 mb-0">
-                                        12.5 MB
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                      
                         {/* end profile-user-accordion */}
                       </div>
                       {/* end user-profile-desc */}

@@ -1,47 +1,43 @@
 import React, { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { Link, useParams } from "react-router-dom";
 import moment from "moment";
+import { NotificationManager } from "react-notifications";
+import "react-notifications/lib/notifications.css";
 
 const AllUser = () => {
   const user = useSelector((state) => state.user);
   const LoginUserLocal = JSON.parse(localStorage.getItem("loginUser"));
 
   //console.log("user",user);
- 
 
-  
-  const [loading, setLoading] = useState(false);
+  // const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredPeople, setFilteredPeople] = useState([]);
   const [AllUser, setAllUser] = useState([]);
-  const [online,setOnline]=useState([])
-const Dispatch=useDispatch(state=>state.user.unseenCount)
-
+  const [online, setOnline] = useState([]);
+  // const Dispatch=useDispatch(state=>state.user.unseenCount)
+  const [notifiedConversations, setNotifiedConversations] = useState(new Set());
   //console.log("online=>>", UpdatedOnlineUser);
   const onlineUsers = useSelector((state) => state?.user?.onlineUser);
 
-  const UpdatedOnlineUser=onlineUsers.filter(item=>item!==LoginUserLocal._id)
+  const UpdatedOnlineUser = onlineUsers.filter(
+    (item) => item !== LoginUserLocal._id
+  );
   const Params = useParams();
 
   useEffect(() => {
-
-    const onlineFiltered = filteredPeople.filter((item) => 
+    const onlineFiltered = filteredPeople.filter((item) =>
       UpdatedOnlineUser.includes(item.userDetails._id)
     );
 
-    const onlineUsersArray = onlineFiltered.map(item => item.userDetails);
+    const onlineUsersArray = onlineFiltered.map((item) => item.userDetails);
 
     // Set the online state
-    setOnline(onlineUsersArray); 
-  //  console.log("Filtered online users:", onlineUsersArray);
-
-   
+    setOnline(onlineUsersArray);
+    //  console.log("Filtered online users:", onlineUsersArray);
   }, [onlineUsers]); // Run effect when these dependencies change
-  
-  
-     
 
   const socketConnection = useSelector(
     (state) => state?.user?.socketConnections
@@ -50,13 +46,13 @@ const Dispatch=useDispatch(state=>state.user.unseenCount)
     setSearchTerm(event.target.value); // Update the state with the search term
   };
 
-//console.log("AllUser",AllUser)
+  //console.log("AllUser",AllUser)
   useEffect(() => {
     if (socketConnection) {
       socketConnection.emit("latestUserSideBar", user?._id);
 
       socketConnection.on("ConversationMsg", (data) => {
-      //   console.log("ConversationMsg", data);
+        // console.log("ConversationMsg", data);
 
         const conversationUserData = data?.map((conversationUser, index) => {
           if (
@@ -78,27 +74,37 @@ const Dispatch=useDispatch(state=>state.user.unseenCount)
             };
           }
         });
-         setAllUser(conversationUserData);
-    //    console.log("Conversation", conversationUserData)
-        
-
-        
+        setAllUser(conversationUserData);
+        //    console.log("Conversation", conversationUserData)
       });
     }
   }, [socketConnection, user]);
 
   useEffect(() => {
     const filtered = AllUser.filter((item) => {
-      return item.userDetails.name.toLowerCase().includes(searchTerm.toLowerCase());
+      return item?.userDetails?.name
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase());
     });
     setFilteredPeople(filtered);
-  //  console.log("Filtered People:", filtered);
-  }, [searchTerm, AllUser]); 
+    //  console.log("Filtered People:", filtered);
+  }, [searchTerm, AllUser]);
 
+  useEffect(() => {
+    filteredPeople.forEach((conv) => {
+      const unseenCount = conv.unseenMsg && !conv.unseenMsg.seen ? 1 : 0;
 
-//console.log("filteredPeople",filteredPeople)
-
-
+      if (unseenCount > 0 && !notifiedConversations.has(conv.userDetails._id)) {
+        NotificationManager.success(
+          `${unseenCount} new message${unseenCount > 1 ? "s" : ""}`,
+          `${conv.lastMsg?.text}`,
+          3000
+        );
+        notifiedConversations.add(conv.userDetails._id); // Track this conversation as notified
+        setNotifiedConversations(new Set(notifiedConversations)); // Update the state
+      }
+    });
+  }, [filteredPeople]); // Run effect when filteredPeople changes
 
   return (
     <>
@@ -203,13 +209,12 @@ const Dispatch=useDispatch(state=>state.user.unseenCount)
                       <ul className="list-unstyled chat-list chat-user-list">
                         {filteredPeople.map((conv) => {
                           // Determine the relevant user details
-                          const isSender = conv.sender._id === user._id; // Check if the current user is the sender
+                          const isSender = conv.sender?._id === user._id; // Check if the current user is the sender
                           const otherUser = isSender
                             ? conv.receiver
                             : conv.sender; // Get the other user's details
-                          const lastMsgText = conv.lastMsg
-                            ? conv.lastMsg.text
-                            : "No messages yet"; // Handle case with no last message
+                          {/* console.log("last msg", conv.lastMsg); */}
+
                           const unseenCount =
                             conv.unseenMsg && !conv.unseenMsg.seen ? 1 : 0; // Count unseen messages
 
@@ -239,9 +244,21 @@ const Dispatch=useDispatch(state=>state.user.unseenCount)
                                           : "text-truncate"
                                       } mb-0 font-size-12`}
                                     >
-                                      {lastMsgText.length > 20
-                                        ? `${lastMsgText.slice(0, 20)}...`
-                                        : lastMsgText}
+                                      {conv.lastMsg?.imageUrl && (
+                                        <i className="ri-image-fill align-middle me-1 ms-0">
+                                          {" "}
+                                          Images
+                                        </i>
+                                      )}
+                                      {conv.lastMsg?.videoUrl && (
+                                        <i className="ri-vidicon-line align-middle me-1 ms-0">
+                                          {" "}
+                                          Video
+                                        </i>
+                                      )}
+                                      {conv.lastMsg?.tex?.length > 20
+                                        ? `${conv.lastMsg.text.slice(0, 20)}...`
+                                        : conv.lastMsg.text}
                                     </p>
                                   </div>
                                   <div className="font-size-11">
@@ -261,13 +278,17 @@ const Dispatch=useDispatch(state=>state.user.unseenCount)
                                   </div>
 
                                   <div className="unread-message">
-                                    { (Params.userId!==otherUser._id) ? (conv.unseenMsg > 0 ? (
-                                      <span className="badge badge-soft-success rounded-pill">
-                                        {conv.unseenMsg}
-                                      </span>
+                                    {Params.userId !== otherUser._id ? (
+                                      conv.unseenMsg > 0 ? (
+                                        <span className="badge badge-soft-success rounded-pill">
+                                          {conv.unseenMsg}
+                                        </span>
+                                      ) : (
+                                        ""
+                                      )
                                     ) : (
                                       ""
-                                    )): ""}
+                                    )}
                                   </div>
                                 </div>
                               </Link>
